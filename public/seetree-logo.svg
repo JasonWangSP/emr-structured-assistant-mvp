@@ -1,0 +1,30 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#9fd9ff"/>
+      <stop offset="100%" stop-color="#1f86ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect x="206" y="230" width="612" height="150" fill="#ffffff" rx="8"/>
+  <path fill="#ffffff" fill-rule="evenodd" d="
+    M210 420
+    H814
+    A120 120 0 0 1 934 540
+    V820
+    A120 120 0 0 1 814 940
+    H210
+    A120 120 0 0 1 90 820
+    V540
+    A120 120 0 0 1 210 420
+    Z
+    M360 420
+    H664
+    A80 80 0 0 1 744 500
+    V840
+    H280
+    V500
+    A80 80 0 0 1 360 420
+    Z
+  "/>
+</svg>

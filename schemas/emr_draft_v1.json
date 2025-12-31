@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EMR Draft v1",
+  "type": "object",
+  "required": ["meta", "emr"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": ["doctor_confirmation_required"],
+      "additionalProperties": false,
+      "properties": {
+        "doctor_confirmation_required": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "emr": {
+      "type": "object",
+      "required": [
+        "chief_complaint",
+        "present_illness",
+        "tcm_assessment_draft",
+        "missing_information"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "chief_complaint": {
+          "type": "object",
+          "required": ["text", "evidence"],
+          "additionalProperties": false,
+          "properties": {
+            "text": {
+              "type": "string"
+            },
+            "evidence": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["turn_id", "quote"],
+                "additionalProperties": false,
+                "properties": {
+                  "turn_id": {
+                    "type": "string"
+                  },
+                  "quote": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "present_illness": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "tcm_assessment_draft": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "missing_information": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

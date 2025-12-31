@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EMR Output Placeholder",
+  "type": "object",
+  "properties": {
+    "summary": {
+      "type": "string"
+    },
+    "entities": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "required": ["summary", "entities"],
+  "additionalProperties": false
+}
