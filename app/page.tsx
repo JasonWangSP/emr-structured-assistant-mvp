@@ -50,7 +50,7 @@ type ThemeMode = "default" | "soft" | "contrast";
 
 const copy = {
   zh: {
-    productName: "见树 · 临床病历结构化系统",
+    productName: "依拉 · 临床病历结构化系统",
     productSubtitle: "Clinical Documentation Structuring System",
     evidenceTitleCn: "证据时间线",
     evidenceTitleEn: "Evidence Timeline",
@@ -524,7 +524,7 @@ export default function Home() {
       <header className={styles.header}>
         <div className={styles.brandRow}>
           <div className={styles.brandLogoWrap}>
-            <img className={styles.brandLogo} src="/seetree-logo.png" alt="见树" />
+            <img className={styles.brandLogo} src="/assets/logo/logo.svg" alt="依拉" />
           </div>
           <div className={styles.brandText}>
             <h1 className={styles.title}>{t.productName}</h1>
