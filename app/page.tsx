@@ -319,7 +319,7 @@ export default function Home() {
     recognition.interimResults = false;
     recognition.continuous = true;
     recognition.maxAlternatives = 1;
-    recognition.onresult = (event) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       lastAudioTimestampRef.current = Date.now();
       let newTranscript = "";
       for (let i = event.resultIndex; i < event.results.length; i += 1) {
