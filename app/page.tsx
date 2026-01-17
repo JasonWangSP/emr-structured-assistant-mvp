@@ -304,9 +304,10 @@ export default function Home() {
   };
 
   const startVoiceCapture = () => {
+    type SpeechRecognitionCtorType = new () => SpeechRecognition;
     const SpeechRecognitionCtor =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
+      ((window as any).SpeechRecognition ||
+        (window as any).webkitSpeechRecognition) as SpeechRecognitionCtorType;
 
     if (!SpeechRecognitionCtor) {
       alert("???????????????? Chrome / Edge");
@@ -314,7 +315,7 @@ export default function Home() {
     }
 
     let sessionTranscript = "";
-    const recognition = new SpeechRecognitionCtor();
+    const recognition: SpeechRecognition = new SpeechRecognitionCtor();
     recognition.lang = language === "zh" ? "zh-CN" : "en-US";
     recognition.interimResults = false;
     recognition.continuous = true;
