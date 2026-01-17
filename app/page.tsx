@@ -304,22 +304,17 @@ export default function Home() {
   };
 
   const startVoiceCapture = () => {
-    const SpeechRecognition =
-      (window as typeof window & {
-        SpeechRecognition?: typeof SpeechRecognition;
-        webkitSpeechRecognition?: typeof SpeechRecognition;
-      }).SpeechRecognition ||
-      (window as typeof window & {
-        webkitSpeechRecognition?: typeof SpeechRecognition;
-      }).webkitSpeechRecognition;
+    const SpeechRecognitionCtor =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
 
-    if (!SpeechRecognition) {
-      handleAddMessage("【语音采集】请在此处替换为语音转写内容", "voice");
+    if (!SpeechRecognitionCtor) {
+      alert("???????????????? Chrome / Edge");
       return;
     }
 
     let sessionTranscript = "";
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionCtor();
     recognition.lang = language === "zh" ? "zh-CN" : "en-US";
     recognition.interimResults = false;
     recognition.continuous = true;
