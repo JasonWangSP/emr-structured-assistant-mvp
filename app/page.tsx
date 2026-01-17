@@ -320,8 +320,8 @@ export default function Home() {
     recognition.interimResults = false;
     recognition.continuous = true;
     recognition.maxAlternatives = 1;
-    recognition.onresult = function (this: SpeechRecognition, event: Event) {
-      const e = event as SpeechRecognitionEvent;
+    recognition.onresult = (event: any) => {
+      const e = event as any;
       lastAudioTimestampRef.current = Date.now();
       let newTranscript = "";
       for (let i = e.resultIndex; i < e.results.length; i += 1) {
@@ -702,7 +702,11 @@ export default function Home() {
               />
               <div className={styles.actionRow}>
                 <div className={styles.actionGroup}>
-                  <button className={styles.primaryButton} type="button" onClick={handleAddMessage}>
+                  <button
+                    className={styles.primaryButton}
+                    type="button"
+                    onClick={() => handleAddMessage()}
+                  >
                     {t.addEvidence}
                   </button>
                   <button
@@ -853,4 +857,3 @@ export default function Home() {
     </div>
   );
 }
-# 
