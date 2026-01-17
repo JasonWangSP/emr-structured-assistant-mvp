@@ -205,11 +205,12 @@ export default function Home() {
       const totalMinutes = 9 * 60 + 10 + index;
       const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
       const minutes = String(totalMinutes % 60).padStart(2, "0");
+      const messageText = message?.text ?? "";
       return {
         id: `E${index + 1}`,
         time: `${hours}:${minutes}`,
-        label: getSemanticLabel(message.text, language),
-        text: message.text,
+        label: getSemanticLabel(messageText, language),
+        text: messageText,
       };
     });
   }, [messages, language]);
@@ -224,14 +225,14 @@ export default function Home() {
     }
     setDraftFields((prev) => ({
       ...prev,
-      chiefComplaint: emrDraft.chief_complaint.text,
-      presentIllness: emrDraft.present_illness.text,
-      pastHistoryNotes: emrDraft.past_history.text,
-      diagnosticAssessment: emrDraft.diagnostic_assessment.text,
-      chiefEvidence: emrDraft.chief_complaint.evidence,
-      presentEvidence: emrDraft.present_illness.evidence,
-      pastEvidence: emrDraft.past_history.evidence,
-      diagnosticEvidence: emrDraft.diagnostic_assessment.evidence,
+      chiefComplaint: emrDraft.chief_complaint?.text ?? "",
+      presentIllness: emrDraft.present_illness?.text ?? "",
+      pastHistoryNotes: emrDraft.past_history?.text ?? "",
+      diagnosticAssessment: emrDraft.diagnostic_assessment?.text ?? "",
+      chiefEvidence: emrDraft.chief_complaint?.evidence ?? [],
+      presentEvidence: emrDraft.present_illness?.evidence ?? [],
+      pastEvidence: emrDraft.past_history?.evidence ?? [],
+      diagnosticEvidence: emrDraft.diagnostic_assessment?.evidence ?? [],
     }));
   }, [emrDraft]);
 
@@ -408,14 +409,17 @@ export default function Home() {
 
   const handleGenerateStructuredEmr = async () => {
     try {
-      const collectedText = buildRawText(messages);
+      const collectedText = messages
+        .map((message) => message?.text)
+        .filter(Boolean)
+        .join("\n");
 
-      if (!collectedText || collectedText.trim() === "") {
+      if (!collectedText.trim()) {
         alert("没有可用于生成病历的内容");
         return;
       }
 
-      console.log("[EMR] generate start");
+      console.debug("[EMR] generate start");
 
       const res = await fetch("/api/emr/generate", {
         method: "POST",
@@ -438,10 +442,12 @@ export default function Home() {
 
       setDraftFields((prev) => ({
         ...prev,
-        ...emr,
+        chiefComplaint: emr?.chief_complaint || "",
+        presentIllness: emr?.present_illness || "",
+        diagnosticAssessment: [emr?.diagnosis, emr?.treatment_plan]
+          .filter(Boolean)
+          .join("\n"),
       }));
-
-      setEmrDraft(emr);
 
       console.log("[EMR] generate success", emr);
     } catch (err) {
@@ -451,43 +457,10 @@ export default function Home() {
   };
 
   const buildRawText = (items: ChatMessage[]) => {
-    return items.map((item) => item.text).join("\n");
-  };
-
-  const handleGenerateEmr = async () => {
-    const rawText = buildRawText(messages).trim();
-    if (!rawText) {
-      setGenerationWarning(t.warningEmpty);
-      return;
-    }
-
-    setIsGenerating(true);
-    setGenerationWarning("");
-    try {
-      const response = await fetch("/api/emr-draft", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          conversation: rawText,
-          history: "",
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText);
-      }
-
-      const data = (await response.json()) as EmrDraft;
-      setEmrDraft(data);
-    } catch (error) {
-      console.error(error);
-      setEmrDraft(null);
-    } finally {
-      setIsGenerating(false);
-    }
+    return items
+      .map((item) => item?.text)
+      .filter(Boolean)
+      .join("\n");
   };
 
   const handleUseSample = () => {

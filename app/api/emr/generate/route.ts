@@ -1,32 +1,38 @@
 import { NextResponse } from "next/server";
 
-type EmrResponse = {
-  success: true;
-  emr: {
-    chief_complaint: string;
-    present_illness: string;
-    diagnosis: string;
-    treatment_plan: string;
-  };
-};
-
 export async function POST(req: Request) {
-  const body = (await req.json()) as { text?: string; language?: string };
-  const text = body.text?.trim() ?? "";
+  try {
+    const body = await req.json();
+    const { text, language } = body;
 
-  if (!text) {
-    return NextResponse.json({ error: "text is required" }, { status: 400 });
+    if (!text || typeof text !== "string") {
+      return NextResponse.json(
+        { success: false, error: "Invalid input text" },
+        { status: 400 }
+      );
+    }
+
+    /**
+     * ⚠️ MVP 版本：先 mock 结构化 EMR
+     * 后续你可以在这里接 DeepSeek
+     */
+    const emr = {
+      chief_complaint: "咳嗽、乏力",
+      present_illness: text.slice(0, 200),
+      past_history: "",
+      diagnosis: "上呼吸道感染（考虑）",
+      treatment_plan: "建议休息，多饮水，必要时对症处理",
+    };
+
+    return NextResponse.json({
+      success: true,
+      emr,
+    });
+  } catch (err) {
+    console.error("[EMR GENERATE ERROR]", err);
+    return NextResponse.json(
+      { success: false, error: "Server error" },
+      { status: 500 }
+    );
   }
-
-  const response: EmrResponse = {
-    success: true,
-    emr: {
-      chief_complaint: "咳嗽 5 天，夜间加重",
-      present_illness: "干咳起病，随后有黄痰，伴低热与轻度气短。",
-      diagnosis: "急性支气管炎（考虑）",
-      treatment_plan: "对症止咳化痰，必要时复诊评估。",
-    },
-  };
-
-  return NextResponse.json(response);
 }
