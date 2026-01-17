@@ -320,11 +320,12 @@ export default function Home() {
     recognition.interimResults = false;
     recognition.continuous = true;
     recognition.maxAlternatives = 1;
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: Event) => {
+      const e = event as SpeechRecognitionEvent;
       lastAudioTimestampRef.current = Date.now();
       let newTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; i += 1) {
-        const result = event.results[i];
+      for (let i = e.resultIndex; i < e.results.length; i += 1) {
+        const result = e.results[i];
         if (result.isFinal) {
           newTranscript += result[0]?.transcript ?? "";
         }
@@ -335,8 +336,8 @@ export default function Home() {
       console.debug("voice.onresult", {
         sessionId,
         chunkIndex: voiceChunkIndexRef.current,
-        resultIndex: event.resultIndex,
-        resultsLength: event.results.length,
+        resultIndex: e.resultIndex,
+        resultsLength: e.results.length,
         transcript: newTranscript,
         inputStateBefore: inputText,
         textareaValueBefore: inputRef.current?.value ?? "",
