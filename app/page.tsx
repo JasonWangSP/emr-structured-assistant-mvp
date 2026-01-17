@@ -406,6 +406,50 @@ export default function Home() {
     handleAddMessage(`【图片采集】${file.name}`, "image");
   };
 
+  const handleGenerateStructuredEmr = async () => {
+    try {
+      const collectedText = buildRawText(messages);
+
+      if (!collectedText || collectedText.trim() === "") {
+        alert("没有可用于生成病历的内容");
+        return;
+      }
+
+      console.log("[EMR] generate start");
+
+      const res = await fetch("/api/emr/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: collectedText,
+          language: "zh",
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        console.error("[EMR] generate failed", data);
+        alert("结构化病历生成失败");
+        return;
+      }
+
+      const emr = data.emr;
+
+      setDraftFields((prev) => ({
+        ...prev,
+        ...emr,
+      }));
+
+      setEmrDraft(emr);
+
+      console.log("[EMR] generate success", emr);
+    } catch (err) {
+      console.error(err);
+      alert("系统异常，请查看控制台");
+    }
+  };
+
   const buildRawText = (items: ChatMessage[]) => {
     return items.map((item) => item.text).join("\n");
   };
@@ -747,7 +791,7 @@ export default function Home() {
                   <button
                     className={styles.primaryButton}
                     type="button"
-                    onClick={handleGenerateEmr}
+                    onClick={handleGenerateStructuredEmr}
                     disabled={!canGenerate}
                   >
                     {isGenerating ? t.generating : t.generateDraft}
