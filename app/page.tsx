@@ -3,19 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./page.module.css";
 
-type EvidenceItem = {
-  text: string;
-  evidence: string[];
-};
-
-type EmrDraft = {
-  chief_complaint: EvidenceItem;
-  present_illness: EvidenceItem;
-  past_history: EvidenceItem;
-  summary: string;
-  diagnostic_assessment: EvidenceItem;
-};
-
 type ChatSource = "text" | "voice" | "image";
 
 type ChatMessage = {
@@ -31,15 +18,16 @@ type EvidenceBlock = {
   text: string;
 };
 
+type EmrField = {
+  text: string;
+  evidenceIds: string[];
+};
+
 type DraftFields = {
-  chiefComplaint: string;
-  presentIllness: string;
-  pastHistoryNotes: string;
-  diagnosticAssessment: string;
-  chiefEvidence: string[];
-  presentEvidence: string[];
-  pastEvidence: string[];
-  diagnosticEvidence: string[];
+  chiefComplaint: EmrField;
+  presentIllness: EmrField;
+  pastHistoryNotes: EmrField;
+  diagnosticAssessment: EmrField;
 };
 
 type Language = "zh" | "en";
@@ -65,7 +53,7 @@ const copy = {
     addEvidence: "采集病史",
     collectVoice: "语音",
     collectImage: "照片",
-    generateDraft: "生成结构化病历",
+    generateDraft: "生成结构化病历（草稿）",
     generating: "生成中...",
     warningEmpty: "请先采集问诊记录",
     evidenceEmpty: "尚未采集到结构化病史记录",
@@ -168,7 +156,6 @@ const normalizeEvidence = (refs: string[]) => {
 export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState<string>("");
-  const [emrDraft, setEmrDraft] = useState<EmrDraft | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationWarning, setGenerationWarning] = useState<string>("");
   const [language, setLanguage] = useState<Language>("zh");
@@ -188,14 +175,10 @@ export default function Home() {
   const voiceSessionIdRef = useRef(0);
   const voiceChunkIndexRef = useRef(0);
   const [draftFields, setDraftFields] = useState<DraftFields>({
-    chiefComplaint: "",
-    presentIllness: "",
-    pastHistoryNotes: "",
-    diagnosticAssessment: "",
-    chiefEvidence: [],
-    presentEvidence: [],
-    pastEvidence: [],
-    diagnosticEvidence: [],
+    chiefComplaint: { text: "", evidenceIds: [] },
+    presentIllness: { text: "", evidenceIds: [] },
+    pastHistoryNotes: { text: "", evidenceIds: [] },
+    diagnosticAssessment: { text: "", evidenceIds: [] },
   });
 
   const t = copy[language];
@@ -218,23 +201,6 @@ export default function Home() {
   const evidenceIdSet = useMemo(() => {
     return new Set(evidenceBlocks.map((block) => block.id));
   }, [evidenceBlocks]);
-
-  useEffect(() => {
-    if (!emrDraft) {
-      return;
-    }
-    setDraftFields((prev) => ({
-      ...prev,
-      chiefComplaint: emrDraft.chief_complaint?.text ?? "",
-      presentIllness: emrDraft.present_illness?.text ?? "",
-      pastHistoryNotes: emrDraft.past_history?.text ?? "",
-      diagnosticAssessment: emrDraft.diagnostic_assessment?.text ?? "",
-      chiefEvidence: emrDraft.chief_complaint?.evidence ?? [],
-      presentEvidence: emrDraft.present_illness?.evidence ?? [],
-      pastEvidence: emrDraft.past_history?.evidence ?? [],
-      diagnosticEvidence: emrDraft.diagnostic_assessment?.evidence ?? [],
-    }));
-  }, [emrDraft]);
 
   useEffect(() => {
     if (messages.length <= previousMessageCount.current) {
@@ -408,6 +374,8 @@ export default function Home() {
   };
 
   const handleGenerateStructuredEmr = async () => {
+    setIsGenerating(true);
+    setGenerationWarning("");
     try {
       const collectedText = messages
         .map((message) => message?.text)
@@ -415,44 +383,79 @@ export default function Home() {
         .join("\n");
 
       if (!collectedText.trim()) {
-        alert("没有可用于生成病历的内容");
+        setGenerationWarning(t.warningEmpty);
         return;
       }
 
-      console.debug("[EMR] generate start");
-
-      const res = await fetch("/api/emr/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: collectedText,
-          language: "zh",
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        console.error("[EMR] generate failed", data);
-        alert("结构化病历生成失败");
-        return;
-      }
-
-      const emr = data.emr;
-
-      setDraftFields((prev) => ({
-        ...prev,
-        chiefComplaint: emr?.chief_complaint || "",
-        presentIllness: emr?.present_illness || "",
-        diagnosticAssessment: [emr?.diagnosis, emr?.treatment_plan]
-          .filter(Boolean)
-          .join("\n"),
+      const evidence = messages.map((message, index) => ({
+        id: `E${index + 1}`,
+        text: message?.text ?? "",
       }));
 
-      console.log("[EMR] generate success", emr);
-    } catch (err) {
-      console.error(err);
-      alert("系统异常，请查看控制台");
+
+      const payload = {
+        conversation: collectedText,
+        history: "",
+        evidence,
+      };
+
+      if (!payload.conversation) {
+        setGenerationWarning(t.warningEmpty);
+        return;
+      }
+
+      console.log("[EMR] generate start");
+
+      const res = await fetch("/api/emr-draft", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(
+          `[EMR] API failed: ${res.status} ${res.statusText} - ${errorText}`
+        );
+      }
+
+      const data = await res.json();
+      console.log("[EMR] generate success", data);
+      setDraftFields((prev) => ({
+        ...prev,
+        chiefComplaint: {
+          text: data?.chiefComplaint?.text ?? "",
+          evidenceIds: data?.chiefComplaint?.evidenceIds ?? [],
+        },
+        presentIllness: {
+          text: data?.presentIllness?.text ?? "",
+          evidenceIds: data?.presentIllness?.evidenceIds ?? [],
+        },
+        pastHistoryNotes: {
+          text: data?.pastHistory?.text ?? "",
+          evidenceIds: data?.pastHistory?.evidenceIds ?? [],
+        },
+        diagnosticAssessment: {
+          text: data?.diagnosticAssessment?.text ?? "",
+          evidenceIds: data?.diagnosticAssessment?.evidenceIds ?? [],
+        },
+      }));
+
+      console.log("[EMR] structured EMR state updated", data);
+      console.log("??????????");
+      return;
+    } catch (err: any) {
+      console.error("[EMR] generate failed");
+      console.error("raw error:", err);
+      console.error("error type:", typeof err);
+      console.error("error message:", err?.message);
+      console.error("error stack:", err?.stack);
+
+      setGenerationWarning(err?.message || "?????????????????????????");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -505,31 +508,27 @@ export default function Home() {
       { id: 38, text: "对，晚上咳得厉害点。", source: "text" },
       { id: 39, text: "好的，我大概了解了。", source: "text" },
     ]);
-    setEmrDraft(null);
     setGenerationWarning("");
   };
 
   const handleClear = () => {
     setMessages([]);
     setInputText("");
-    setEmrDraft(null);
     setGenerationWarning("");
   };
 
-  const chiefEvidence = normalizeEvidence(draftFields.chiefEvidence).filter((ref) =>
+  const chiefEvidence = normalizeEvidence(draftFields.chiefComplaint.evidenceIds).filter((ref) =>
     evidenceIdSet.has(ref)
   );
-  const presentEvidence = normalizeEvidence(draftFields.presentEvidence).filter((ref) =>
+  const presentEvidence = normalizeEvidence(draftFields.presentIllness.evidenceIds).filter((ref) =>
     evidenceIdSet.has(ref)
   );
-  const pastEvidence = normalizeEvidence(draftFields.pastEvidence).filter((ref) =>
+  const pastEvidence = normalizeEvidence(draftFields.pastHistoryNotes.evidenceIds).filter((ref) =>
     evidenceIdSet.has(ref)
   );
-  const diagnosticEvidence = normalizeEvidence(draftFields.diagnosticEvidence).filter((ref) =>
+  const diagnosticEvidence = normalizeEvidence(draftFields.diagnosticAssessment.evidenceIds).filter((ref) =>
     evidenceIdSet.has(ref)
   );
-
-  const canGenerate = messages.length > 0 && !isGenerating;
 
   return (
     <div
@@ -765,9 +764,9 @@ export default function Home() {
                     className={styles.primaryButton}
                     type="button"
                     onClick={handleGenerateStructuredEmr}
-                    disabled={!canGenerate}
+                    disabled={isGenerating || messages.length === 0}
                   >
-                    {isGenerating ? t.generating : t.generateDraft}
+                    {isGenerating ? "病历生成中…" : "生成结构化病历（草稿）"}
                   </button>
                 </div>
               </div>
@@ -789,6 +788,11 @@ export default function Home() {
             <div className={styles.statusBanner}>{t.statusBanner}</div>
           </div>
           <div className={styles.panelBody}>
+            {isGenerating ? (
+              <div className="mb-3 text-sm text-blue-600">
+                🩺 系统正在根据当前就诊证据生成结构化病历草稿，请稍候…
+              </div>
+            ) : null}
             <div className={styles.emrSectionDense}>
               <div className={styles.sectionHeading}>
                 <span>{t.chiefComplaint}</span>
@@ -796,9 +800,15 @@ export default function Home() {
               </div>
               <textarea
                 className={`${styles.emrTextarea} ${styles.emrTextareaCompact}`}
-                value={draftFields.chiefComplaint}
+                value={draftFields.chiefComplaint.text}
                 onChange={(event) =>
-                  setDraftFields((prev) => ({ ...prev, chiefComplaint: event.target.value }))
+                  setDraftFields((prev) => ({
+                    ...prev,
+                    chiefComplaint: {
+                      ...prev.chiefComplaint,
+                      text: event.target.value,
+                    },
+                  }))
                 }
                 onInput={handleAutoGrow}
               />
@@ -813,9 +823,15 @@ export default function Home() {
               </div>
               <textarea
                 className={`${styles.emrTextarea} ${styles.emrTextareaPresent}`}
-                value={draftFields.presentIllness}
+                value={draftFields.presentIllness.text}
                 onChange={(event) =>
-                  setDraftFields((prev) => ({ ...prev, presentIllness: event.target.value }))
+                  setDraftFields((prev) => ({
+                    ...prev,
+                    presentIllness: {
+                      ...prev.presentIllness,
+                      text: event.target.value,
+                    },
+                  }))
                 }
                 onInput={handleAutoGrow}
               />
@@ -830,9 +846,15 @@ export default function Home() {
               </div>
               <textarea
                 className={`${styles.emrTextarea} ${styles.emrTextareaNotes}`}
-                value={draftFields.pastHistoryNotes}
+                value={draftFields.pastHistoryNotes.text}
                 onChange={(event) =>
-                  setDraftFields((prev) => ({ ...prev, pastHistoryNotes: event.target.value }))
+                  setDraftFields((prev) => ({
+                    ...prev,
+                    pastHistoryNotes: {
+                      ...prev.pastHistoryNotes,
+                      text: event.target.value,
+                    },
+                  }))
                 }
                 onInput={handleAutoGrow}
               />
@@ -847,11 +869,14 @@ export default function Home() {
               </div>
               <textarea
                 className={`${styles.emrTextarea} ${styles.emrTextareaDiagnostic}`}
-                value={draftFields.diagnosticAssessment}
+                value={draftFields.diagnosticAssessment.text}
                 onChange={(event) =>
                   setDraftFields((prev) => ({
                     ...prev,
-                    diagnosticAssessment: event.target.value,
+                    diagnosticAssessment: {
+                      ...prev.diagnosticAssessment,
+                      text: event.target.value,
+                    },
                   }))
                 }
                 onInput={handleAutoGrow}
